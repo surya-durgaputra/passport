@@ -4,43 +4,60 @@ namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Route;
 use App\User;
-use GuzzleHttp\Client;
 
 class AuthController extends Controller
 {
-    public function register(Request $request, User $user, Client $http){
+    public function register(Request $request, User $user){
         //if validation fails, it will return validation error and wont hit the next line
         $validateData = $request->validate([
             'email'=>'required',
             'name'=>'required',
             'password'=>'required'
         ]);
-
         
+        //init result
+        $result = [];
         $result = $user->createNewUser($request);
         
         if($result['status'] != config('cust_constants.success')){
-            return null; // return some error 
+            return response()->json($result,500); // return some error 
         }
 
-        $newUser = $result['result'];
+        //init result
         $result = [];
-        //make a guzzle http request
-        $response = $http->post(config('cust_constants.url').'oauth/token', [
-            'form_params' => [
-                'grant_type' => 'password',
-                'client_id' => config('cust_constants.client_id'),
-                'client_secret' => config('cust_constants.client-secret'),
-                'username' => $request->email,
-                'password' => $request->password,
-                'scope' => '',
-            ],
-        ]);
-        return json_decode((string) $response->getBody(), true);
+        $result = $user->getToken($request);
+        
+        if($result['status'] != config('cust_constants.success')){
+            return response()->json($result,500); // return some error 
+        }
+        
+        return response()->json($result,200); 
+        
     }
 
-    public function login(){
+    public function login(Request $request, User $user){
+        //if validation fails, it will return validation error and wont hit the next line
+        $validateData = $request->validate([
+            'email'=>'required',
+            'password'=>'required'
+        ]);
 
+        //init result
+        $result = [];
+        $result = $user->checkCredentials($request);
+        if($result['status'] != config('cust_constants.success')){
+            return response()->json($result,500); // return some error 
+        }
+
+        //init result
+        $result = [];
+        $result = $user->getToken($request);
+        if($result['status'] != config('cust_constants.success')){
+            return response()->json($result,500); // return some error 
+        }
+        
+        return response()->json($result,200);
     }
 }
